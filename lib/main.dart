@@ -5,33 +5,58 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'login.dart';
+import 'home.dart';
 
+// =====================================
+// MAIN
+// =====================================
 Future<void> main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
 
-  // CONNECT FLUTTER TO FIREBASE
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // LOGIN FIREBASE ANONYMOUSLY
-  try {
+  runApp(const MyApp());
+}
 
-    await FirebaseAuth.instance.signInAnonymously();
+// =====================================
+// MAIN APPLICATION
+// =====================================
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-    debugPrint('Firebase Connected Successfully!');
-
-  } catch (e) {
-
-    debugPrint('Firebase Auth Error: $e');
-  }
-
-  // START APPLICATION
-  runApp(
-    const MaterialApp(
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
-    ),
-  );
+      title: 'Smart Laboratory Safety',
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+
+          // WAIT FOR FIREBASE AUTH
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          // SHOW LOGIN IF NOT SIGNED IN
+          // ALSO REJECT OLD ANONYMOUS LOGIN
+          final user = snapshot.data;
+
+          if (user == null || user.isAnonymous) {
+            return const LoginPage();
+          }
+
+          // EMAIL/PASSWORD LOGIN SUCCESS
+          return const HomePage();
+        },
+      ),
+    );
+  }
 }
