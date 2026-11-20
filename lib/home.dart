@@ -1,8 +1,8 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'login.dart';
 import 'lab_data.dart';
 import 'dashboard.dart';
 import 'actuator.dart';
@@ -18,7 +18,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
 
+  // =====================================
+  // VARIABLES
+  // =====================================
   int selectedPage = 0;
+
   LabData lab = LabData();
 
   Timer? timer;
@@ -31,6 +35,9 @@ class _HomePageState extends State<HomePage> {
     'Sensor Monitoring',
   ];
 
+  // =====================================
+  // START HOME PAGE
+  // =====================================
   @override
   void initState() {
     super.initState();
@@ -38,31 +45,46 @@ class _HomePageState extends State<HomePage> {
     refreshData();
 
     timer = Timer.periodic(
-      Duration(seconds: 3),
+      const Duration(seconds: 3),
           (timer) {
         refreshData();
       },
     );
   }
 
-  // REFRESH SENSOR DATA
+  // =====================================
+  // READ FIREBASE DATA
+  // =====================================
   Future<void> refreshData() async {
+
     if (loading) return;
 
     loading = true;
 
-    await lab.readData();
+    try {
+      await lab.readData();
 
-    loading = false;
+    } finally {
+      loading = false;
+    }
 
     if (mounted) {
       setState(() {});
     }
   }
 
-  // CONTROL ACTUATOR
-  void controlDevice(String device, bool value) async {
-    bool success = await lab.sendControl(device, value);
+  // =====================================
+  // CONTROL LED AND BUZZER
+  // =====================================
+  void controlDevice(
+      String device,
+      bool value,
+      ) async {
+
+    bool success = await lab.sendControl(
+      device,
+      value,
+    );
 
     if (!mounted) return;
 
@@ -70,32 +92,68 @@ class _HomePageState extends State<HomePage> {
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Control failed'),
         ),
       );
     }
   }
 
+  // =====================================
+  // FIREBASE LOGOUT
+  // =====================================
+  Future<void> logout() async {
+
+    try {
+
+      await FirebaseAuth.instance.signOut();
+
+      // main.dart DETECTS SIGN OUT
+      // AND SHOWS LoginPage AUTOMATICALLY
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logout gagal'),
+        ),
+      );
+    }
+  }
+
+  // =====================================
+  // STOP TIMER
+  // =====================================
   @override
   void dispose() {
+
     timer?.cancel();
+
     super.dispose();
   }
 
+  // =====================================
   // SELECT PAGE
+  // =====================================
   Widget selectedBody() {
 
     if (selectedPage == 0) {
-      return DashboardPage(lab: lab);
+
+      return DashboardPage(
+        lab: lab,
+      );
 
     } else if (selectedPage == 1) {
+
       return ActuatorPage(
         lab: lab,
         onControl: controlDevice,
       );
 
     } else if (selectedPage == 2) {
+
       return HistoryPage(
         lab: lab,
         onRefresh: () {
@@ -104,6 +162,7 @@ class _HomePageState extends State<HomePage> {
       );
 
     } else {
+
       return SensorPage(
         lab: lab,
         onRefresh: refreshData,
@@ -111,19 +170,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // LOGOUT
-  void logout() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LoginPage(),
-      ),
-          (route) => false,
-    );
-  }
-
+  // =====================================
+  // BUILD HOME PAGE
+  // =====================================
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
 
       appBar: AppBar(
@@ -132,18 +184,26 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
 
         actions: [
+
           IconButton(
             onPressed: logout,
-            icon: Icon(Icons.logout),
+            icon: const Icon(
+              Icons.logout,
+            ),
           ),
+
         ],
       ),
 
       body: selectedBody(),
 
+      // =====================================
       // BOTTOM NAVIGATION
+      // =====================================
       bottomNavigationBar: BottomNavigationBar(
+
         currentIndex: selectedPage,
+
         type: BottomNavigationBarType.fixed,
 
         selectedItemColor: Colors.blueAccent,
@@ -156,9 +216,11 @@ class _HomePageState extends State<HomePage> {
         showUnselectedLabels: true,
 
         onTap: (index) {
+
           setState(() {
             selectedPage = index;
           });
+
         },
 
         items: const [
